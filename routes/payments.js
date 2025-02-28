@@ -12,6 +12,10 @@ router.post("/stripe", authenticate, async (req, res) => {
   try {
     const { bookingId } = req.body;
 
+    // Validate bookingId
+    if (!bookingId)
+      return res.status(400).json({ message: "Booking ID is required" });
+
     // Fetch booking details
     const booking = await Booking.findById(bookingId).populate("vehicle");
     if (!booking) return res.status(404).json({ message: "Booking not found" });
