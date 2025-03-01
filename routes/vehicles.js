@@ -4,6 +4,10 @@ const { authenticate, isAdmin } = require("../middleware/authenticate");
 
 const router = express.Router();
 
+if (!authenticate || !isAdmin) {
+  console.error("Error: authenticate or isAdmin is undefined");
+}
+
 // Create a vehicle (Admin Only)
 router.post("/", authenticate, isAdmin, async (req, res) => {
   try {
