@@ -20,7 +20,7 @@ router.post("/stripe", authenticate, async (req, res) => {
     const booking = await Booking.findById(bookingId).populate("vehicle");
     if (!booking) return res.status(404).json({ message: "Booking not found" });
 
-    // Create Stripe payment intent , pk_test_51Qx1LcIbXUP7L451tUZpd6255fn1vTECO0J2wgy59IIIkV1OWQYvlMCax4XuGuHkg4D0rbh8fRBBxrB0K8YYDoa5009KOKKNZn
+    // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: booking.totalPrice * 100, // Convert to cents
       currency: "usd",
