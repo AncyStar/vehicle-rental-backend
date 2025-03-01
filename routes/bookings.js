@@ -10,6 +10,20 @@ router.post("/", authenticate, async (req, res) => {
   try {
     const { vehicleId, startDate, endDate } = req.body;
 
+    // Check if a booking already exists for this vehicle within the requested date range
+    const existingBooking = await Booking.findOne({
+      vehicle: vehicleId,
+      $or: [{ startDate: { $lte: endDate }, endDate: { $gte: startDate } }],
+    });
+
+    if (existingBooking) {
+      return res
+        .status(400)
+        .json({
+          message: "This vehicle is already booked for the selected dates.",
+        });
+    }
+
     // Check if vehicle exists
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
