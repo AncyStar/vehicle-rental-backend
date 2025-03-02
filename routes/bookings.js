@@ -17,11 +17,9 @@ router.post("/", authenticate, async (req, res) => {
     });
 
     if (existingBooking) {
-      return res
-        .status(400)
-        .json({
-          message: "This vehicle is already booked for the selected dates.",
-        });
+      return res.status(400).json({
+        message: "This vehicle is already booked for the selected dates.",
+      });
     }
 
     // Check if vehicle exists
@@ -47,6 +45,20 @@ router.post("/", authenticate, async (req, res) => {
     res.status(201).json({ message: "Booking created", booking });
   } catch (error) {
     res.status(500).json({ message: "Error creating booking" });
+  }
+});
+
+// Get a Booking by ID
+router.get("/:id", authenticate, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id).populate(
+      "vehicle user"
+    );
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching booking details" });
   }
 });
 
