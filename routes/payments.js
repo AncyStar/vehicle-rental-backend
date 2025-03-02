@@ -13,12 +13,9 @@ router.post("/stripe", authenticate, async (req, res) => {
     const { bookingId } = req.body;
 
     // Validate bookingId
+    const booking = await Booking.findById(bookingId);
     if (!bookingId)
       return res.status(400).json({ message: "Booking ID is required" });
-
-    // Fetch booking details
-    const booking = await Booking.findById(bookingId).populate("vehicle");
-    if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -39,7 +36,7 @@ router.post("/razorpay", authenticate, async (req, res) => {
     const { bookingId } = req.body;
 
     // Fetch booking details
-    const booking = await Booking.findById(bookingId).populate("vehicle");
+    const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     const razorpay = new Razorpay({
