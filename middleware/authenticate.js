@@ -4,8 +4,6 @@ const User = require("../models/User");
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  console.log("Auth Header Received:", authHeader); // Debugging
-
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "Access denied, token missing" });
   }
