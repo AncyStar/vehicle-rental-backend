@@ -10,10 +10,23 @@ router.post("/", authenticate, async (req, res) => {
   try {
     const { vehicleId, startDate, endDate } = req.body;
 
-    // Check if a booking already exists for this vehicle within the requested date range
+    // Validate dates
+    const today = new Date().toISOString().split("T")[0];
+    if (startDate < today || endDate < today) {
+      return res
+        .status(400)
+        .json({ message: "Booking dates cannot be in the past." });
+    }
+    if (new Date(startDate) >= new Date(endDate)) {
+      return res
+        .status(400)
+        .json({ message: "End date must be after start date." });
+    }
+
+    // Check if the vehicle is already booked for these dates
     const existingBooking = await Booking.findOne({
       vehicle: vehicleId,
-      $or: [{ startDate: { $lte: endDate }, endDate: { $gte: startDate } }],
+      $and: [{ startDate: { $lt: endDate } }, { endDate: { $gt: startDate } }],
     });
 
     if (existingBooking) {
@@ -44,7 +57,9 @@ router.post("/", authenticate, async (req, res) => {
 
     res.status(201).json({ message: "Booking created", booking });
   } catch (error) {
-    res.status(500).json({ message: "Error creating booking" });
+    res
+      .status(500)
+      .json({ message: "Error creating booking", error: error.message });
   }
 });
 
