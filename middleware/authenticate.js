@@ -3,8 +3,9 @@ const User = require("../models/User");
 
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    console.log("Request Headers:", req.headers); // Debugging
 
+    const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res
         .status(401)
@@ -23,9 +24,24 @@ const authenticate = async (req, res, next) => {
         });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Decode token to check expiry
+    const decoded = jwt.decode(token);
+    if (decoded && decoded.exp * 1000 < Date.now()) {
+      return res
+        .status(401)
+        .json({
+          message: "Unauthorized: Token has expired. Please log in again.",
+        });
+    }
 
-    const user = await User.findById(decoded.id).select("-password");
+    // Verify token
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Decoded Token:", verified);
+
+    // Find user in database
+    const user = await User.findById(verified.id).select("-password");
+    console.log("User Found:", user ? "Yes" : "No");
+
     if (!user) {
       return res.status(401).json({ message: "Unauthorized: User not found." });
     }
