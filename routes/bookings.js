@@ -9,16 +9,26 @@ const router = express.Router();
 router.get("/availability/:vehicleId", async (req, res) => {
   try {
     const { vehicleId } = req.params;
+
+    if (!vehicleId) {
+      return res.status(400).json({ message: "Vehicle ID is required." });
+    }
+
     const bookings = await Booking.find({
       vehicle: vehicleId,
-      status: "confirmed",
+      status: { $in: ["pending", "confirmed"] }, // Fetch active bookings
     });
 
+    if (!bookings || bookings.length === 0) {
+      return res.json({ unavailableDates: [] }); // No bookings, all dates available
+    }
+
     const unavailableDates = bookings.map((booking) => ({
-      start: booking.startDate,
-      end: booking.endDate,
+      start: booking.startDate.toISOString(),
+      end: booking.endDate.toISOString(),
     }));
 
+    console.log("Unavailable Dates:", unavailableDates); // Debugging
     res.json({ unavailableDates });
   } catch (error) {
     console.error("Error fetching available dates:", error.message);
