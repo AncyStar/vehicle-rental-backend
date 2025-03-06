@@ -28,34 +28,40 @@ router.get("/availability/:vehicleId", async (req, res) => {
 
 // Create a Booking
 router.post("/", authenticate, async (req, res) => {
-  const rentalDays = Math.ceil(
-    (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
-  );
-
-  const totalPrice = rentalDays * vehicle.pricePerDay;
-  console.log("Total Price for Booking:", totalPrice); // ✅ Debugging
-
   try {
+    console.log("Creating Booking for Vehicle ID:", req.body.vehicleId);
+    console.log("User Making Booking:", req.user.id);
+
+    // Extract values properly
     const { vehicleId, startDate, endDate } = req.body;
 
-    const booking = await Booking.create({
-      user: req.user.id,
-      vehicle: vehicleId,
-      startDate,
-      endDate,
-      totalPrice,
-      status: "pending",
-    });
-
-    if (!booking || !booking._id) {
-      return res.status(500).json({ message: "Booking creation failed." });
+    // Check if both `startDate` and `endDate` exist
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "Start Date and End Date are required" });
     }
 
-    console.log(" Booking Created:", booking);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-    res
-      .status(201)
-      .json({ message: "Booking created", bookingId: booking._id }); // ✅ Send only the ID
+    // Validate that dates are correct
+    if (isNaN(start) || isNaN(end)) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+
+    if (start >= end) {
+      return res
+        .status(400)
+        .json({ message: "End date must be after start date" });
+    }
+
+    //Now calculate rental days safely
+    const rentalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+
+    console.log("Rental Days:", rentalDays); // Debugging
+
+    // Continue with booking process...
   } catch (error) {
     console.error("Error creating booking:", error.message);
     res.status(500).json({ message: "Error creating booking" });
