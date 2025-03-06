@@ -69,7 +69,7 @@ router.get("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Booking not found." });
     }
 
-    // Only the booking owner or an admin can fetch the booking
+    // Allow access only to the booking owner or an admin
     if (req.user.role !== "admin" && booking.user.toString() !== req.user.id) {
       console.log("Unauthorized Access Attempt - User ID:", req.user.id);
       return res.status(403).json({
