@@ -28,6 +28,13 @@ router.get("/availability/:vehicleId", async (req, res) => {
 
 // Create a Booking
 router.post("/", authenticate, async (req, res) => {
+  const rentalDays = Math.ceil(
+    (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
+  );
+
+  const totalPrice = rentalDays * vehicle.pricePerDay;
+  console.log("Total Price for Booking:", totalPrice); // ✅ Debugging
+
   try {
     const { vehicleId, startDate, endDate } = req.body;
 
@@ -36,6 +43,7 @@ router.post("/", authenticate, async (req, res) => {
       vehicle: vehicleId,
       startDate,
       endDate,
+      totalPrice,
       status: "pending",
     });
 
