@@ -29,23 +29,18 @@ router.get("/availability/:vehicleId", async (req, res) => {
 // Create a Booking
 router.post("/", authenticate, async (req, res) => {
   try {
-    console.log("Creating Booking for Vehicle ID:", req.body.vehicleId);
-    console.log("User Making Booking:", req.user.id);
+    console.log("Incoming Booking Request:", req.body); // 🔍 Debugging
 
-    // Extract values properly
     const { vehicleId, startDate, endDate } = req.body;
-
-    // Check if both `startDate` and `endDate` exist
-    if (!startDate || !endDate) {
-      return res
-        .status(400)
-        .json({ message: "Start Date and End Date are required" });
+    if (!vehicleId || !startDate || !endDate) {
+      return res.status(400).json({ message: "Missing required fields" });
     }
 
+    // Log parsed dates
     const start = new Date(startDate);
     const end = new Date(endDate);
+    console.log("Parsed Dates:", { start, end });
 
-    // Validate that dates are correct
     if (isNaN(start) || isNaN(end)) {
       return res.status(400).json({ message: "Invalid date format" });
     }
@@ -56,12 +51,9 @@ router.post("/", authenticate, async (req, res) => {
         .json({ message: "End date must be after start date" });
     }
 
-    //Now calculate rental days safely
-    const rentalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    console.log("Booking Passed Validation ");
 
-    console.log("Rental Days:", rentalDays); // Debugging
-
-    // Continue with booking process...
+    // Continue with booking...
   } catch (error) {
     console.error("Error creating booking:", error.message);
     res.status(500).json({ message: "Error creating booking" });
