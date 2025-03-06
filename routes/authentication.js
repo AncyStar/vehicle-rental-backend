@@ -6,7 +6,9 @@ const { logout } = require("../middleware/authenticate");
 
 const router = express.Router();
 
-router.post("/logout", logout);
+router.post("/logout", authenticate, (req, res) => {
+  res.status(200).json({ message: "Logout successful" });
+});
 
 // Register
 router.post("/register", async (req, res) => {
