@@ -2,14 +2,31 @@ const express = require("express");
 const Booking = require("../models/Booking");
 const Vehicle = require("../models/Vehicle");
 const { authenticate } = require("../middleware/authenticate");
-const { getAvailableDates } = require("../middleware/authenticate");
 
 const router = express.Router();
 
-// Fetch unavailable dates for a vehicle
-router.get("/availability/:vehicleId", getAvailableDates);
+// ✅ Fetch unavailable dates for a vehicle
+router.get("/availability/:vehicleId", async (req, res) => {
+  try {
+    const { vehicleId } = req.params;
+    const bookings = await Booking.find({
+      vehicle: vehicleId,
+      status: "confirmed",
+    });
 
-// Create a Booking
+    const unavailableDates = bookings.map((booking) => ({
+      start: booking.startDate,
+      end: booking.endDate,
+    }));
+
+    res.json({ unavailableDates });
+  } catch (error) {
+    console.error("Error fetching available dates:", error.message);
+    res.status(500).json({ message: "Error fetching available dates." });
+  }
+});
+
+// ✅ Create a Booking
 router.post("/", authenticate, async (req, res) => {
   try {
     console.log("Creating Booking for Vehicle ID:", req.body.vehicleId);
@@ -17,43 +34,45 @@ router.post("/", authenticate, async (req, res) => {
 
     const { vehicleId, startDate, endDate } = req.body;
 
-    // Validate booking dates
-    const today = new Date().toISOString().split("T")[0];
-    if (startDate < today || endDate < today) {
+    // ✅ Validate booking dates properly
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to prevent timezone issues
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (start < today || end < today) {
       return res
         .status(400)
         .json({ message: "Booking dates cannot be in the past." });
     }
-    if (new Date(startDate) >= new Date(endDate)) {
+    if (start >= end) {
       return res
         .status(400)
         .json({ message: "End date must be after start date." });
     }
 
-    // Check if the vehicle is already booked for these dates
-    const existingBooking = await Booking.findOne({
+    // ✅ Check if the vehicle is already booked for these dates
+    const isBooked = await Booking.exists({
       vehicle: vehicleId,
-      $and: [{ startDate: { $lt: endDate } }, { endDate: { $gt: startDate } }],
+      $and: [{ startDate: { $lt: end } }, { endDate: { $gt: start } }],
     });
 
-    if (existingBooking) {
+    if (isBooked) {
       console.log("Booking Conflict: This vehicle is already booked");
       return res.status(400).json({
         message: "This vehicle is already booked for the selected dates.",
       });
     }
 
-    // Check if vehicle exists
+    // ✅ Check if vehicle exists
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
 
-    // Calculate total price
-    const rentalDays = Math.ceil(
-      (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
-    );
+    // ✅ Calculate total price
+    const rentalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     const totalPrice = rentalDays * vehicle.pricePerDay;
 
-    // Create the booking
+    // ✅ Create the booking
     const booking = await Booking.create({
       user: req.user.id,
       vehicle: vehicleId,
@@ -63,10 +82,6 @@ router.post("/", authenticate, async (req, res) => {
       status: "pending",
     });
 
-    // Verify booking is saved
-    const bookingExists = await Booking.findById(booking._id);
-    console.log("Booking Exists in DB:", bookingExists ? "Yes" : "No");
-
     res.status(201).json({ message: "Booking created", booking });
   } catch (error) {
     console.error("Error creating booking:", error.message);
@@ -74,10 +89,10 @@ router.post("/", authenticate, async (req, res) => {
   }
 });
 
-// Get a Booking by ID
+// ✅ Get a Booking by ID
 router.get("/:id", authenticate, async (req, res) => {
   try {
-    console.log("Fetching Booking for ID:", req.params.id); // Debugging
+    console.log("Fetching Booking for ID:", req.params.id);
 
     const booking = await Booking.findById(req.params.id).populate(
       "vehicle user",
@@ -89,16 +104,16 @@ router.get("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Booking not found." });
     }
 
-    // Only the booking owner or an admin can fetch the booking
-
+    // ✅ Only the booking owner or an admin can fetch the booking
     if (req.user.role !== "admin" && booking.user.toString() !== req.user.id) {
       console.log("Unauthorized Access Attempt - User ID:", req.user.id);
-      return res.status(403).json({
-        message: "Forbidden: You do not have access to this booking.",
-      });
+      return res
+        .status(403)
+        .json({
+          message: "Forbidden: You do not have access to this booking.",
+        });
     }
 
-    console.log("Booking Found:", booking);
     res.json(booking);
   } catch (error) {
     console.error("Error fetching booking details:", error.message);
@@ -106,7 +121,7 @@ router.get("/:id", authenticate, async (req, res) => {
   }
 });
 
-// Get All Bookings (Admin Only)
+// ✅ Get All Bookings (Admin Only)
 router.get("/", authenticate, async (req, res) => {
   try {
     const filter = req.user.role === "admin" ? {} : { user: req.user.id };
@@ -120,7 +135,7 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
-// Cancel a Booking (User Only)
+// ✅ Cancel a Booking (User Only)
 router.put("/:id/cancel", authenticate, async (req, res) => {
   try {
     console.log("Canceling Booking ID:", req.params.id);
