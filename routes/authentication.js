@@ -2,8 +2,11 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { logout } = require("../middleware/authenticate");
 
 const router = express.Router();
+
+router.post("/logout", logout);
 
 // Register
 router.post("/register", async (req, res) => {

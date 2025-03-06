@@ -1,9 +1,10 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Booking = require("../models/Booking");
 
 const authenticate = async (req, res, next) => {
   try {
-    console.log("Request Headers:", req.headers); // Debugging
+    console.log("Request Headers:", req.headers);
 
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -13,7 +14,7 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-    console.log("Extracted Token:", token); // Debugging
+    console.log("Extracted Token:", token);
 
     if (!process.env.JWT_SECRET) {
       console.error("JWT_SECRET is not defined in .env!");
@@ -21,16 +22,6 @@ const authenticate = async (req, res, next) => {
         .status(500)
         .json({
           message: "Server error: JWT secret missing. Contact support.",
-        });
-    }
-
-    // Decode token to check expiry
-    const decoded = jwt.decode(token);
-    if (decoded && decoded.exp * 1000 < Date.now()) {
-      return res
-        .status(401)
-        .json({
-          message: "Unauthorized: Token has expired. Please log in again.",
         });
     }
 
@@ -50,14 +41,6 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("JWT Verification Error:", error.message);
-
-    if (error.name === "TokenExpiredError") {
-      return res
-        .status(401)
-        .json({
-          message: "Unauthorized: Token has expired. Please log in again.",
-        });
-    }
     return res.status(401).json({ message: "Unauthorized: Invalid token." });
   }
 };
@@ -76,4 +59,26 @@ const isAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, isAdmin };
+const logout = (req, res) => {
+  res.json({ message: "Logged out successfully." });
+};
+
+const getAvailableDates = async (req, res) => {
+  try {
+    const { vehicleId } = req.params;
+    const bookings = await Booking.find({
+      vehicle: vehicleId,
+      status: "confirmed",
+    });
+    const unavailableDates = bookings.map((booking) => ({
+      start: booking.startDate,
+      end: booking.endDate,
+    }));
+    res.json({ unavailableDates });
+  } catch (error) {
+    console.error("Error fetching available dates:", error.message);
+    res.status(500).json({ message: "Error fetching available dates." });
+  }
+};
+
+module.exports = { authenticate, isAdmin, logout, getAvailableDates };

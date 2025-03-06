@@ -2,8 +2,12 @@ const express = require("express");
 const Booking = require("../models/Booking");
 const Vehicle = require("../models/Vehicle");
 const { authenticate } = require("../middleware/authenticate");
+const { getAvailableDates } = require("../middleware/authenticate");
 
 const router = express.Router();
+
+// Fetch unavailable dates for a vehicle
+router.get("/availability/:vehicleId", getAvailableDates);
 
 // Create a Booking
 router.post("/", authenticate, async (req, res) => {
