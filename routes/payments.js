@@ -14,19 +14,22 @@ router.post("/stripe", authenticate, async (req, res) => {
 
     // Validate bookingId
     const booking = await Booking.findById(bookingId);
-    if (!bookingId)
-      return res.status(400).json({ message: "Booking ID is required" });
+    if (!booking)
+      return res.status(400).json({ message: "Booking not required" });
 
+    console.log("Booking Total Price:", booking.totalPrice); // Debugging
+
+    if (!booking.totalPrice || isNaN(booking.totalPrice)) {
+      return res.status(400).json({ message: "Invalid booking amount" });
+    }
     // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: booking.totalPrice * 100, // Convert to cents
+      amount: Math.round(booking.totalPrice * 100), // Convert to cents
       currency: "usd",
       metadata: { bookingId: booking._id.toString() },
     });
 
-    res.json({
-      paymentUrl: `https://checkout.stripe.com/pay/${paymentIntent.client_secret}`,
-    });
+    res.json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
     res.status(500).json({ message: "Payment error", error: error.message });
   }
