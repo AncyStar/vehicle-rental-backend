@@ -5,7 +5,7 @@ const { authenticate } = require("../middleware/authenticate");
 
 const router = express.Router();
 
-// ✅ Fetch unavailable dates for a vehicle
+// Fetch unavailable dates for a vehicle
 router.get("/availability/:vehicleId", async (req, res) => {
   try {
     const { vehicleId } = req.params;
@@ -26,70 +26,35 @@ router.get("/availability/:vehicleId", async (req, res) => {
   }
 });
 
-// ✅ Create a Booking
+// Create a Booking
 router.post("/", authenticate, async (req, res) => {
   try {
-    console.log("Creating Booking for Vehicle ID:", req.body.vehicleId);
-    console.log("User Making Booking:", req.user.id);
-
     const { vehicleId, startDate, endDate } = req.body;
 
-    // ✅ Validate booking dates properly
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to prevent timezone issues
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (start < today || end < today) {
-      return res
-        .status(400)
-        .json({ message: "Booking dates cannot be in the past." });
-    }
-    if (start >= end) {
-      return res
-        .status(400)
-        .json({ message: "End date must be after start date." });
-    }
-
-    // ✅ Check if the vehicle is already booked for these dates
-    const isBooked = await Booking.exists({
-      vehicle: vehicleId,
-      $and: [{ startDate: { $lt: end } }, { endDate: { $gt: start } }],
-    });
-
-    if (isBooked) {
-      console.log("Booking Conflict: This vehicle is already booked");
-      return res.status(400).json({
-        message: "This vehicle is already booked for the selected dates.",
-      });
-    }
-
-    // ✅ Check if vehicle exists
-    const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
-
-    // ✅ Calculate total price
-    const rentalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const totalPrice = rentalDays * vehicle.pricePerDay;
-
-    // ✅ Create the booking
     const booking = await Booking.create({
       user: req.user.id,
       vehicle: vehicleId,
       startDate,
       endDate,
-      totalPrice,
       status: "pending",
     });
 
-    res.status(201).json({ message: "Booking created", booking });
+    if (!booking || !booking._id) {
+      return res.status(500).json({ message: "Booking creation failed." });
+    }
+
+    console.log(" Booking Created:", booking);
+
+    res
+      .status(201)
+      .json({ message: "Booking created", bookingId: booking._id }); // ✅ Send only the ID
   } catch (error) {
     console.error("Error creating booking:", error.message);
     res.status(500).json({ message: "Error creating booking" });
   }
 });
 
-// ✅ Get a Booking by ID
+// Get a Booking by ID
 router.get("/:id", authenticate, async (req, res) => {
   try {
     console.log("Fetching Booking for ID:", req.params.id);
@@ -104,14 +69,12 @@ router.get("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Booking not found." });
     }
 
-    // ✅ Only the booking owner or an admin can fetch the booking
+    // Only the booking owner or an admin can fetch the booking
     if (req.user.role !== "admin" && booking.user.toString() !== req.user.id) {
       console.log("Unauthorized Access Attempt - User ID:", req.user.id);
-      return res
-        .status(403)
-        .json({
-          message: "Forbidden: You do not have access to this booking.",
-        });
+      return res.status(403).json({
+        message: "Forbidden: You do not have access to this booking.",
+      });
     }
 
     res.json(booking);
@@ -121,7 +84,7 @@ router.get("/:id", authenticate, async (req, res) => {
   }
 });
 
-// ✅ Get All Bookings (Admin Only)
+// Get All Bookings (Admin Only)
 router.get("/", authenticate, async (req, res) => {
   try {
     const filter = req.user.role === "admin" ? {} : { user: req.user.id };
@@ -135,7 +98,7 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
-// ✅ Cancel a Booking (User Only)
+// Cancel a Booking (User Only)
 router.put("/:id/cancel", authenticate, async (req, res) => {
   try {
     console.log("Canceling Booking ID:", req.params.id);
