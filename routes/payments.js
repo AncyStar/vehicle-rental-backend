@@ -24,7 +24,9 @@ router.post("/stripe", authenticate, async (req, res) => {
       metadata: { bookingId: booking._id.toString() },
     });
 
-    res.json({ clientSecret: paymentIntent.client_secret });
+    res.json({
+      paymentUrl: `https://checkout.stripe.com/pay/${paymentIntent.client_secret}`,
+    });
   } catch (error) {
     res.status(500).json({ message: "Payment error", error: error.message });
   }
