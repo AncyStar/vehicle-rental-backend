@@ -1,24 +1,47 @@
 const express = require("express");
 const Vehicle = require("../models/Vehicle");
+const Booking = require("../models/Booking");
 const { authenticate, isAdmin } = require("../middleware/authenticate");
 
 const router = express.Router();
 
-if (!authenticate || !isAdmin) {
-  console.error("Error: authenticate or isAdmin is undefined");
-}
+//Get unavailable dates for a vehicle
+router.get("/availability/:vehicleId", async (req, res) => {
+  try {
+    const { vehicleId } = req.params;
+    const bookings = await Booking.find({
+      vehicle: vehicleId,
+      status: "confirmed",
+    });
 
-// Create a vehicle (Admin Only)
+    if (!bookings.length) {
+      return res.json({ unavailableDates: [] }); //No bookings = all dates available
+    }
+
+    const unavailableDates = bookings.map((booking) => ({
+      start: booking.startDate,
+      end: booking.endDate,
+    }));
+
+    res.json({ unavailableDates });
+  } catch (error) {
+    console.error("Error fetching available dates:", error);
+    res.status(500).json({ message: "Error fetching available dates." });
+  }
+});
+
+//  Create a new vehicle (Admin Only)
 router.post("/", authenticate, isAdmin, async (req, res) => {
   try {
     const vehicle = await Vehicle.create(req.body);
     res.status(201).json(vehicle);
   } catch (error) {
-    res.status(500).json({ message: "Error adding vehicle" });
+    console.error("Error adding vehicle:", error);
+    res.status(500).json({ message: "Error adding vehicle." });
   }
 });
 
-// Get all vehicles with filters
+// Get all vehicles with optional filters
 router.get("/", async (req, res) => {
   try {
     const { type, location, minPrice, maxPrice } = req.query;
@@ -28,14 +51,15 @@ router.get("/", async (req, res) => {
     if (location) filters.location = location;
     if (minPrice || maxPrice) {
       filters.pricePerDay = {};
-      if (minPrice) filters.pricePerDay.$gte = minPrice;
-      if (maxPrice) filters.pricePerDay.$lte = maxPrice;
+      if (minPrice) filters.pricePerDay.$gte = parseFloat(minPrice);
+      if (maxPrice) filters.pricePerDay.$lte = parseFloat(maxPrice);
     }
 
     const vehicles = await Vehicle.find(filters);
     res.json(vehicles);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching vehicles" });
+    console.error("Error fetching vehicles:", error);
+    res.status(500).json({ message: "Error fetching vehicles." });
   }
 });
 
@@ -43,11 +67,13 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id);
-    if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
+    if (!vehicle)
+      return res.status(404).json({ message: "Vehicle not found." });
 
     res.json(vehicle);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching vehicle details" });
+    console.error("Error fetching vehicle details:", error);
+    res.status(500).json({ message: "Error fetching vehicle details." });
   }
 });
 
@@ -57,11 +83,13 @@ router.put("/:id", authenticate, isAdmin, async (req, res) => {
     const vehicle = await Vehicle.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
-    if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
+    if (!vehicle)
+      return res.status(404).json({ message: "Vehicle not found." });
 
     res.json(vehicle);
   } catch (error) {
-    res.status(500).json({ message: "Error updating vehicle" });
+    console.error("Error updating vehicle:", error);
+    res.status(500).json({ message: "Error updating vehicle." });
   }
 });
 
@@ -69,11 +97,13 @@ router.put("/:id", authenticate, isAdmin, async (req, res) => {
 router.delete("/:id", authenticate, isAdmin, async (req, res) => {
   try {
     const vehicle = await Vehicle.findByIdAndDelete(req.params.id);
-    if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
+    if (!vehicle)
+      return res.status(404).json({ message: "Vehicle not found." });
 
-    res.json({ message: "Vehicle deleted successfully" });
+    res.json({ message: "Vehicle deleted successfully." });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting vehicle" });
+    console.error("Error deleting vehicle:", error);
+    res.status(500).json({ message: "Error deleting vehicle." });
   }
 });
 
