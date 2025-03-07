@@ -35,12 +35,18 @@ router.get("/availability/:vehicleId", async (req, res) => {
     res.status(500).json({ message: "Error fetching available dates." });
   }
 });
-
-// Book a Vehicle
+// Create a new booking
 router.post("/", authenticate, async (req, res) => {
   try {
     const { vehicleId, startDate, endDate } = req.body;
     const userId = req.user.id;
+
+    if (!vehicleId || !startDate || !endDate) {
+      return res.status(400).json({ message: "All fields are required." }); // ✅ Handle missing fields
+    }
+
+    console.log(`Creating Booking for Vehicle ID: ${vehicleId}`);
+    console.log(`User Making Booking: ${userId}`);
 
     const booking = await Booking.create({
       vehicle: vehicleId,
@@ -50,7 +56,7 @@ router.post("/", authenticate, async (req, res) => {
       status: "confirmed",
     });
 
-    res.status(201).json({ message: "Booking created", booking }); //Returns booking with ID
+    res.status(201).json({ message: "Booking created", booking });
   } catch (error) {
     console.error("Error creating booking:", error);
     res.status(500).json({ message: "Error creating booking." });
