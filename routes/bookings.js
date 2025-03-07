@@ -39,62 +39,21 @@ router.get("/availability/:vehicleId", async (req, res) => {
 // Book a Vehicle
 router.post("/", authenticate, async (req, res) => {
   try {
-    console.log("Creating Booking for Vehicle ID:", req.body.vehicleId);
-    console.log("User Making Booking:", req.user.id);
-
     const { vehicleId, startDate, endDate } = req.body;
+    const userId = req.user.id;
 
-    // Validate booking dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (start < today || end < today) {
-      return res
-        .status(400)
-        .json({ message: "Booking dates cannot be in the past." });
-    }
-    if (start >= end) {
-      return res
-        .status(400)
-        .json({ message: "End date must be after start date." });
-    }
-
-    // Check if the vehicle is already booked
-    const isBooked = await Booking.exists({
-      vehicle: vehicleId,
-      $and: [{ startDate: { $lt: end } }, { endDate: { $gt: start } }],
-    });
-
-    if (isBooked) {
-      return res
-        .status(400)
-        .json({ message: "This vehicle is already booked for these dates." });
-    }
-
-    // Check if vehicle exists
-    const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
-
-    // Calculate total price
-    const rentalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const totalPrice = rentalDays * vehicle.pricePerDay;
-
-    // Create the booking
     const booking = await Booking.create({
-      user: req.user.id,
       vehicle: vehicleId,
+      user: userId,
       startDate,
       endDate,
-      totalPrice,
-      status: "pending",
+      status: "confirmed",
     });
 
-    res.status(201).json({ message: "Booking created", booking });
+    res.status(201).json({ message: "Booking created", booking }); //Returns booking with ID
   } catch (error) {
-    console.error("Error creating booking:", error.message);
-    res.status(500).json({ message: "Error creating booking" });
+    console.error("Error creating booking:", error);
+    res.status(500).json({ message: "Error creating booking." });
   }
 });
 
@@ -105,13 +64,13 @@ router.get("/:bookingId", authenticate, async (req, res) => {
     const booking = await Booking.findById(bookingId);
 
     if (!booking) {
-      return res.status(404).json({ message: "❌ Booking not found." });
+      return res.status(404).json({ message: "Booking not found." });
     }
 
     res.json(booking);
   } catch (error) {
-    console.error("❌ Error fetching booking details:", error);
-    res.status(500).json({ message: "❌ Error fetching booking details." });
+    console.error("Error fetching booking details:", error);
+    res.status(500).json({ message: "Error fetching booking details." });
   }
 });
 
