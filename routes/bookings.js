@@ -98,4 +98,21 @@ router.post("/", authenticate, async (req, res) => {
   }
 });
 
+//  Get booking by ID
+router.get("/:bookingId", authenticate, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({ message: "❌ Booking not found." });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    console.error("❌ Error fetching booking details:", error);
+    res.status(500).json({ message: "❌ Error fetching booking details." });
+  }
+});
+
 module.exports = router;
