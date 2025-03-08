@@ -51,7 +51,9 @@ router.post("/", authenticate, async (req, res) => {
 
     if (!vehicleId || !startDate || !endDate || totalPrice == null) {
       console.log("❌ MISSING REQUIRED FIELD(S)");
-      return res.status(400).json({ message: "All fields are required." });
+      return res
+        .status(400)
+        .json({ message: "All fields are required.", received: req.body });
     }
 
     const parsedStartDate = new Date(startDate);
@@ -62,7 +64,7 @@ router.post("/", authenticate, async (req, res) => {
       user: req.user.id,
       startDate: parsedStartDate,
       endDate: parsedEndDate,
-      totalPrice,
+      totalPrice: Number(totalPrice), // 🔹 Ensure it's a number
       status: "confirmed",
     });
 
