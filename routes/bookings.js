@@ -38,12 +38,9 @@ router.get("/availability/:vehicleId", async (req, res) => {
 // Create a new booking
 router.post("/", authenticate, async (req, res) => {
   try {
-    console.log("Received Booking Request Body:", req.body);
-    console.log("Authenticated User:", req.user);
+    console.log("Received Booking Request Body:", req.body); // ✅ Debugging log
 
     const { vehicleId, startDate, endDate, totalPrice } = req.body;
-    const userId = req.user?.id; // Ensure user is authenticated
-
     if (!vehicleId || !startDate || !endDate || !totalPrice) {
       return res.status(400).json({ message: "All fields are required." });
     }
@@ -77,7 +74,7 @@ router.post("/", authenticate, async (req, res) => {
     // Create booking
     const booking = await Booking.create({
       vehicle: vehicleId,
-      user: userId,
+      user: req.user.id,
       startDate: parsedStartDate,
       endDate: parsedEndDate,
       totalPrice,
