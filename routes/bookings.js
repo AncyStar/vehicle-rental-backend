@@ -38,27 +38,38 @@ router.get("/availability/:vehicleId", async (req, res) => {
 // Create a new booking
 router.post("/", authenticate, async (req, res) => {
   try {
+    console.log("✅ Booking Request Received:");
+    console.log("🔍 Full Request Body:", JSON.stringify(req.body, null, 2));
+
     const { vehicleId, startDate, endDate, totalPrice } = req.body;
-    const userId = req.user.id;
+
+    console.log("📌 Extracted Fields:");
+    console.log("📌 vehicleId:", vehicleId);
+    console.log("📌 startDate:", startDate);
+    console.log("📌 endDate:", endDate);
+    console.log("📌 totalPrice:", totalPrice); // This should NOT be undefined
 
     if (!vehicleId || !startDate || !endDate || totalPrice == null) {
+      console.log("❌ MISSING REQUIRED FIELD(S)");
       return res.status(400).json({ message: "All fields are required." });
     }
 
-    const booking = new Booking({
+    const parsedStartDate = new Date(startDate);
+    const parsedEndDate = new Date(endDate);
+
+    const booking = await Booking.create({
       vehicle: vehicleId,
-      user: userId,
-      startDate,
-      endDate,
+      user: req.user.id,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
       totalPrice,
       status: "confirmed",
     });
 
-    await booking.save();
-
-    res.status(201).json({ message: "Booking created", booking });
+    console.log("✅ Booking Created Successfully:", booking);
+    res.status(201).json({ message: "Booking created successfully", booking });
   } catch (error) {
-    console.error("Error creating booking:", error);
+    console.error("❌ FULL ERROR:", error);
     res
       .status(500)
       .json({ message: "Error creating booking.", error: error.message });
