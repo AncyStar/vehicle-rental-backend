@@ -38,25 +38,53 @@ router.get("/availability/:vehicleId", async (req, res) => {
 // Create a new booking
 router.post("/", authenticate, async (req, res) => {
   try {
-    const { vehicleId, startDate, endDate } = req.body;
-    const userId = req.user.id;
+    const { vehicleId, startDate, endDate, totalPrice } = req.body;
+    const userId = req.user?.id; // Ensure user is authenticated
 
-    if (!vehicleId || !startDate || !endDate) {
-      return res.status(400).json({ message: "All fields are required." }); // ✅ Handle missing fields
+    if (!vehicleId || !startDate || !endDate || !totalPrice) {
+      return res.status(400).json({ message: "All fields are required." });
     }
 
-    console.log(`Creating Booking for Vehicle ID: ${vehicleId}`);
     console.log(`User Making Booking: ${userId}`);
+    console.log(`Creating Booking for Vehicle ID: ${vehicleId}`);
 
+    // Convert dates to ISO format and validate
+    const parsedStartDate = new Date(startDate);
+    const parsedEndDate = new Date(endDate);
+
+    if (isNaN(parsedStartDate) || isNaN(parsedEndDate)) {
+      return res.status(400).json({ message: "Invalid date format." });
+    }
+
+    // Check if the vehicle is already booked for the selected dates
+    const existingBooking = await Booking.findOne({
+      vehicle: vehicleId,
+      status: { $in: ["pending", "confirmed"] },
+      $or: [{ startDate: { $lte: endDate }, endDate: { $gte: startDate } }],
+    });
+
+    if (existingBooking) {
+      return res
+        .status(400)
+        .json({ message: "Selected dates are unavailable." });
+    }
+
+    // Validate totalPrice
+    if (typeof totalPrice !== "number" || totalPrice <= 0) {
+      return res.status(400).json({ message: "Invalid total price." });
+    }
+
+    // Create booking
     const booking = await Booking.create({
       vehicle: vehicleId,
       user: userId,
-      startDate,
-      endDate,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
+      totalPrice,
       status: "confirmed",
     });
 
-    res.status(201).json({ message: "Booking created", booking });
+    res.status(201).json({ message: "Booking created successfully", booking });
   } catch (error) {
     console.error("Error creating booking:", error);
     res.status(500).json({ message: "Error creating booking." });
