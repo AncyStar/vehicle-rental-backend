@@ -1,97 +1,160 @@
 const express = require("express");
+const router = express.Router();
 const Booking = require("../models/Booking");
 const Vehicle = require("../models/Vehicle");
+const User = require("../models/User");
 const { authenticate } = require("../middleware/authenticate");
 
-const router = express.Router();
-
-// Get available dates for a vehicle
-router.get("/availability/:vehicleId", async (req, res) => {
+// Get all bookings
+router.get("/", authenticate, async (req, res) => {
   try {
-    const { vehicleId } = req.params;
-
-    if (!vehicleId) {
-      return res.status(400).json({ message: "Vehicle ID is required." });
-    }
-
-    const bookings = await Booking.find({
-      vehicle: vehicleId,
-      status: { $in: ["pending", "confirmed"] }, // Fetch active bookings
-    });
-
-    if (!bookings || bookings.length === 0) {
-      return res.json({ unavailableDates: [] }); // No bookings, all dates available
-    }
-
-    const unavailableDates = bookings.map((booking) => ({
-      start: booking.startDate.toISOString(),
-      end: booking.endDate.toISOString(),
-    }));
-
-    console.log("Unavailable Dates:", unavailableDates); // Debugging
-    res.json({ unavailableDates });
+    const bookings = await Booking.find()
+      .populate("user", "name email")
+      .populate("vehicle", "make model year dailyRate");
+    res.json(bookings);
   } catch (error) {
-    console.error("Error fetching available dates:", error.message);
-    res.status(500).json({ message: "Error fetching available dates." });
-  }
-});
-// Create a new booking
-router.post("/", authenticate, async (req, res) => {
-  try {
-    console.log("✅ Booking Request Received:");
-    console.log("🔍 Full Request Body:", JSON.stringify(req.body, null, 2));
-
-    const { vehicleId, startDate, endDate, totalPrice } = req.body;
-
-    console.log("📌 Extracted Fields:");
-    console.log("📌 vehicleId:", vehicleId);
-    console.log("📌 startDate:", startDate);
-    console.log("📌 endDate:", endDate);
-    console.log("📌 totalPrice:", totalPrice); // This should NOT be undefined
-
-    if (!vehicleId || !startDate || !endDate || totalPrice == null) {
-      console.log("❌ MISSING REQUIRED FIELD(S)");
-      return res
-        .status(400)
-        .json({ message: "All fields are required.", received: req.body });
-    }
-
-    const parsedStartDate = new Date(startDate);
-    const parsedEndDate = new Date(endDate);
-
-    const booking = await Booking.create({
-      vehicle: vehicleId,
-      user: req.user.id,
-      startDate: parsedStartDate,
-      endDate: parsedEndDate,
-      totalPrice: Number(totalPrice), // 🔹 Ensure it's a number
-      status: "confirmed",
-    });
-
-    console.log("✅ Booking Created Successfully:", booking);
-    res.status(201).json({ message: "Booking created successfully", booking });
-  } catch (error) {
-    console.error("❌ FULL ERROR:", error);
-    res
-      .status(500)
-      .json({ message: "Error creating booking.", error: error.message });
+    console.error("Error fetching bookings:", error);
+    res.status(500).json({ message: "Error fetching bookings." });
   }
 });
 
-//  Get booking by ID
-router.get("/:bookingId", authenticate, async (req, res) => {
+// Get user's bookings
+router.get("/me", authenticate, async (req, res) => {
   try {
-    const { bookingId } = req.params;
-    const booking = await Booking.findById(bookingId);
+    const bookings = await Booking.find({ user: req.user.id }).populate(
+      "vehicle",
+      "make model year dailyRate imageUrl"
+    );
+    res.json(bookings);
+  } catch (error) {
+    console.error("Error fetching user bookings:", error);
+    res.status(500).json({ message: "Error fetching user bookings." });
+  }
+});
+
+// Get a specific booking
+router.get("/:id", authenticate, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate("user", "name email")
+      .populate("vehicle", "make model year dailyRate imageUrl");
 
     if (!booking) {
-      return res.status(404).json({ message: "Booking not found." });
+      return res.status(404).json({ message: "Booking not found" });
     }
 
     res.json(booking);
   } catch (error) {
-    console.error("Error fetching booking details:", error);
-    res.status(500).json({ message: "Error fetching booking details." });
+    console.error("Error fetching booking:", error);
+    res.status(500).json({ message: "Error fetching booking." });
+  }
+});
+
+// Create a new booking
+router.post("/", authenticate, async (req, res) => {
+  try {
+    // Log request headers and token for debugging
+    console.log("Request Headers:", req.headers);
+    console.log("Extracted Token:", req.headers.authorization.split(" ")[1]);
+    console.log("Decoded Token:", req.user);
+
+    // Verify user exists
+    const user = await User.findById(req.user.id);
+    console.log("User Found:", user ? "Yes" : "No");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Extract data from request body
+    const { vehicleId, startDate, endDate, totalPrice } = req.body;
+
+    console.log("Creating Booking for Vehicle ID:", vehicleId);
+    console.log("User Making Booking:", req.user.id);
+    console.log("Request Body:", req.body);
+    console.log("Total Price from Request:", totalPrice);
+
+    // Check if vehicle exists
+    const vehicle = await Vehicle.findById(vehicleId);
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    // Create and save the booking
+    const booking = new Booking({
+      user: req.user.id,
+      vehicle: vehicleId,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      totalPrice: Number(totalPrice), // Ensure totalPrice is treated as a number
+      status: "pending",
+    });
+
+    console.log("Booking object before save:", booking);
+
+    const savedBooking = await booking.save();
+    res.status(201).json(savedBooking);
+  } catch (error) {
+    console.warn("Error creating booking:", error);
+    res.status(500).json({ message: "Error creating booking." });
+  }
+});
+
+// Update booking status
+router.patch("/:id/status", authenticate, async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ["pending", "confirmed", "completed", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // Check if user is authorized (admin or the booking owner)
+    if (req.user.role !== "admin" && booking.user.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update this booking" });
+    }
+
+    booking.status = status;
+    const updatedBooking = await booking.save();
+
+    res.json(updatedBooking);
+  } catch (error) {
+    console.error("Error updating booking status:", error);
+    res.status(500).json({ message: "Error updating booking status." });
+  }
+});
+
+// Delete a booking
+router.delete("/:id", authenticate, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // Check if user is authorized (admin or the booking owner)
+    if (req.user.role !== "admin" && booking.user.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this booking" });
+    }
+
+    await Booking.findByIdAndDelete(req.params.id);
+    res.json({ message: "Booking deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting booking:", error);
+    res.status(500).json({ message: "Error deleting booking." });
   }
 });
 
