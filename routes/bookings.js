@@ -38,22 +38,41 @@ router.get("/availability/:vehicleId", async (req, res) => {
 // Create a new booking
 router.post("/", authenticate, async (req, res) => {
   try {
-    console.log("Received Booking Request Body:", req.body); // ✅ Debugging log
+    console.log("✅ Received Booking Request Body:", req.body);
+    console.log("✅ Authenticated User:", req.user);
 
     const { vehicleId, startDate, endDate, totalPrice } = req.body;
+
+    console.log("🔍 vehicleId:", vehicleId);
+    console.log("🔍 startDate:", startDate);
+    console.log("🔍 endDate:", endDate);
+    console.log("🔍 totalPrice:", totalPrice);
+
     if (!vehicleId || !startDate || !endDate || !totalPrice) {
+      console.log("❌ Missing required fields");
       return res.status(400).json({ message: "All fields are required." });
     }
 
-    // Convert to Date objects
     const parsedStartDate = new Date(startDate);
     const parsedEndDate = new Date(endDate);
 
     if (isNaN(parsedStartDate) || isNaN(parsedEndDate)) {
+      console.log("❌ Invalid date format");
       return res.status(400).json({ message: "Invalid date format." });
     }
 
-    // Check for existing bookings with overlapping dates
+    const vehicleExists = await Vehicle.findById(vehicleId);
+    if (!vehicleExists) {
+      console.log("❌ Vehicle not found");
+      return res.status(404).json({ message: "Vehicle not found." });
+    }
+
+    const userExists = await User.findById(req.user.id);
+    if (!userExists) {
+      console.log("❌ User not found");
+      return res.status(404).json({ message: "User not found." });
+    }
+
     const existingBooking = await Booking.findOne({
       vehicle: vehicleId,
       status: { $in: ["pending", "confirmed"] },
@@ -61,17 +80,19 @@ router.post("/", authenticate, async (req, res) => {
     });
 
     if (existingBooking) {
+      console.log("❌ Dates unavailable");
       return res
         .status(400)
         .json({ message: "Selected dates are unavailable." });
     }
 
-    // Validate totalPrice
     if (typeof totalPrice !== "number" || totalPrice <= 0) {
+      console.log("❌ Invalid total price");
       return res.status(400).json({ message: "Invalid total price." });
     }
 
-    // Create booking
+    console.log("✅ All validations passed. Creating booking...");
+
     const booking = await Booking.create({
       vehicle: vehicleId,
       user: req.user.id,
@@ -81,11 +102,13 @@ router.post("/", authenticate, async (req, res) => {
       status: "confirmed",
     });
 
-    console.log("Booking Created Successfully:", booking);
+    console.log("✅ Booking Created Successfully:", booking);
     res.status(201).json({ message: "Booking created successfully", booking });
   } catch (error) {
-    console.error("Error creating booking:", error);
-    res.status(500).json({ message: "Error creating booking." });
+    console.error("❌ Error creating booking:", error);
+    res
+      .status(500)
+      .json({ message: "Error creating booking.", error: error.message });
   }
 });
 
