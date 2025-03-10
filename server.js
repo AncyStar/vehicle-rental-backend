@@ -22,7 +22,7 @@ app.use(
 );
 
 // Routes
-app.use("/api/auth", authRoutes);
+app.use("/api/authenticate", authRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
