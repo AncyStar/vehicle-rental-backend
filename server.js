@@ -37,5 +37,5 @@ app.get("/", (req, res) => {
   res.send("Vehicle Rental API is running...");
 });
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
