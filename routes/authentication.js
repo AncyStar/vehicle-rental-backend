@@ -6,16 +6,14 @@ const { authenticate } = require("../middleware/authenticate");
 
 const router = express.Router();
 
-router.post("/logout", authenticate, (req, res) => {
-  res.status(200).json({ message: "Logout successful" });
-});
-
 // Register
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    const userExists = await User.findOne({ email });
+    if (!name || !email || !password)
+      return res.status(400).json({ message: "All fields required" });
 
+    const userExists = await User.findOne({ email });
     if (userExists)
       return res.status(400).json({ message: "User already exists" });
 
