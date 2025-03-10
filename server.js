@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 
 // Import routes
-const authRoutes = require("./routes/authentication");
+const authRoutes = require("./routes/authRoute");
 const vehicleRoutes = require("./routes/vehicles");
 const bookingRoutes = require("./routes/bookings");
 const paymentRoutes = require("./routes/payments");
@@ -22,7 +22,7 @@ app.use(
 );
 
 // Routes
-app.use("/api/authentication", authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
