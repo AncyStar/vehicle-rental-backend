@@ -10,7 +10,7 @@ router.get("/", authenticate, async (req, res) => {
   try {
     const bookings = await Booking.find()
       .populate("user", "name email")
-      .populate("vehicle", "make model year dailyRate");
+      .populate("vehicle", "make model year pricePerDay");
     res.json(bookings);
   } catch (error) {
     console.error("Error fetching bookings:", error);
@@ -23,7 +23,7 @@ router.get("/me", authenticate, async (req, res) => {
   try {
     const bookings = await Booking.find({ user: req.user.id }).populate(
       "vehicle",
-      "make model year dailyRate imageUrl"
+      "make model year pricePerDay images"
     );
     res.json(bookings);
   } catch (error) {
@@ -37,7 +37,7 @@ router.get("/:id", authenticate, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
       .populate("user", "name email")
-      .populate("vehicle", "make model year dailyRate imageUrl");
+      .populate("vehicle", "make model year pricePerDay images");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -50,10 +50,9 @@ router.get("/:id", authenticate, async (req, res) => {
   }
 });
 
-// Create a new booking
+// ✅ Create a new booking with Corrected Total Price Calculation
 router.post("/", authenticate, async (req, res) => {
   try {
-    // Log request headers and token for debugging
     console.log("Request Headers:", req.headers);
     console.log("Extracted Token:", req.headers.authorization.split(" ")[1]);
     console.log("Decoded Token:", req.user);
@@ -67,12 +66,11 @@ router.post("/", authenticate, async (req, res) => {
     }
 
     // Extract data from request body
-    const { vehicleId, startDate, endDate, totalPrice } = req.body;
+    const { vehicleId, startDate, endDate } = req.body;
 
     console.log("Creating Booking for Vehicle ID:", vehicleId);
     console.log("User Making Booking:", req.user.id);
     console.log("Request Body:", req.body);
-    console.log("Total Price from Request:", totalPrice);
 
     // Check if vehicle exists
     const vehicle = await Vehicle.findById(vehicleId);
@@ -80,27 +78,51 @@ router.post("/", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Vehicle not found" });
     }
 
+    // Ensure pricePerDay is correctly retrieved
+    const pricePerDay = vehicle.pricePerDay;
+    if (!pricePerDay || isNaN(pricePerDay)) {
+      return res.status(500).json({ message: "Invalid vehicle pricing" });
+    }
+
+    // Calculate number of days
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const timeDiff = end - start;
+    const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+    if (days <= 0) {
+      return res
+        .status(400)
+        .json({ message: "End date must be after start date" });
+    }
+
+    // Calculate total price
+    const totalPrice = days * pricePerDay;
+    console.log(`Total Price Calculated: ${totalPrice}`); // Debugging log
+
     // Create and save the booking
     const booking = new Booking({
       user: req.user.id,
       vehicle: vehicleId,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      totalPrice: Number(totalPrice), // Ensure totalPrice is treated as a number
+      startDate: start,
+      endDate: end,
+      totalPrice: totalPrice, // ✅ Correctly calculated price
       status: "pending",
     });
 
     console.log("Booking object before save:", booking);
 
     const savedBooking = await booking.save();
-    res.status(201).json(savedBooking);
+    res
+      .status(201)
+      .json({ message: "Booking created successfully", booking: savedBooking });
   } catch (error) {
     console.warn("Error creating booking:", error);
     res.status(500).json({ message: "Error creating booking." });
   }
 });
 
-// Update booking status
+// ✅ Update booking status
 router.patch("/:id/status", authenticate, async (req, res) => {
   try {
     const { status } = req.body;
@@ -112,7 +134,6 @@ router.patch("/:id/status", authenticate, async (req, res) => {
     }
 
     const booking = await Booking.findById(req.params.id);
-
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
@@ -134,7 +155,7 @@ router.patch("/:id/status", authenticate, async (req, res) => {
   }
 });
 
-// Delete a booking
+// ✅ Delete a booking
 router.delete("/:id", authenticate, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
