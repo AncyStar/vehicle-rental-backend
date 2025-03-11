@@ -15,8 +15,9 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "https://vehicle-rental-frontend.netlify.app",
+    origin: "https://vehicle-rentel-frontend.netlify.app/",
     methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
