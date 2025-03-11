@@ -76,10 +76,7 @@ router.post("/", authenticate, async (req, res) => {
 
     // Ensure pricePerDay is valid
     if (!vehicle.pricePerDay || isNaN(vehicle.pricePerDay)) {
-      console.error(
-        "❌ Invalid pricePerDay in vehicle data:",
-        vehicle.pricePerDay
-      );
+      console.error("❌ Invalid pricePerDay:", vehicle.pricePerDay);
       return res.status(500).json({ message: "Invalid vehicle pricing" });
     }
 
@@ -117,7 +114,7 @@ router.post("/", authenticate, async (req, res) => {
       .status(201)
       .json({ message: "Booking created successfully", booking: savedBooking });
   } catch (error) {
-    console.error("❌ Error creating booking:", error);
+    console.error("❌ Error creating booking:", error.message);
     res
       .status(500)
       .json({ message: "Error creating booking.", error: error.message });
