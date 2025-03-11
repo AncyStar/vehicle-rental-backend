@@ -57,16 +57,14 @@ router.post("/", authenticate, async (req, res) => {
 
     const { vehicleId, startDate, endDate } = req.body;
     if (!vehicleId || !startDate || !endDate) {
-      console.error("❌ Missing required fields");
       return res
         .status(400)
         .json({ message: "Vehicle ID, startDate, and endDate are required" });
     }
 
-    // Fetch vehicle details
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) {
-      console.error("❌ Vehicle not found in database");
+      console.error(`❌ Vehicle not found: ${vehicleId}`);
       return res.status(404).json({ message: "Vehicle not found" });
     }
 
@@ -90,14 +88,13 @@ router.post("/", authenticate, async (req, res) => {
     const end = new Date(endDate);
     console.log("🔹 Start Date:", start, "🔹 End Date:", end);
 
-    // Ensure endDate is after startDate
+    // Calculate number of days
     const timeDiff = end - start;
     const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
     console.log("✅ Number of Days:", days);
 
     if (days <= 0) {
-      console.error("❌ End date must be after start date");
       return res
         .status(400)
         .json({ message: "End date must be after start date" });
