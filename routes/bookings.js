@@ -33,5 +33,27 @@ router.post("/", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 });
+// get booking details
+router.get("/:id", async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id); // ❌ Issue: Expecting an ObjectId
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+    res.json(booking);
+  } catch (error) {
+    console.error("Error fetching booking:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
+router.get("/my-bookings", async (req, res) => {
+  try {
+    const userId = req.user.id; // Assuming authentication middleware sets req.user
+    const bookings = await Booking.find({ user: userId }).populate("vehicle");
+    res.json(bookings);
+  } catch (error) {
+    console.error("Error fetching bookings:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
 
 module.exports = router;
