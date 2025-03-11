@@ -34,48 +34,87 @@ router.get("/me", authenticate, async (req, res) => {
 // Create a new booking
 router.post("/", authenticate, async (req, res) => {
   try {
+    console.log("🔹 Booking Request Body:", req.body);
+
     const { vehicleId, startDate, endDate } = req.body;
+
     if (!vehicleId || !startDate || !endDate) {
+      console.error("❌ Missing required fields.");
       return res
         .status(400)
-        .json({ message: "Vehicle ID, startDate, and endDate are required." });
+        .json({ message: "Vehicle ID, startDate, and endDate are required" });
     }
 
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) {
-      return res.status(404).json({ message: "Vehicle not found." });
+      console.error("❌ Vehicle not found:", vehicleId);
+      return res.status(404).json({ message: "Vehicle not found" });
     }
 
-    const pricePerDay = Number(vehicle.pricePerDay);
-    if (isNaN(pricePerDay) || pricePerDay <= 0) {
-      return res.status(500).json({ message: "Invalid vehicle pricing." });
-    }
+    console.log("🔹 Vehicle Found:", vehicle);
 
+    // Convert dates to Date objects
     const start = new Date(startDate);
     const end = new Date(endDate);
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
-      return res.status(400).json({ message: "Invalid date range." });
+    if (start >= end) {
+      console.error("❌ Invalid date range.");
+      return res
+        .status(400)
+        .json({ message: "End date must be after start date" });
     }
 
-    const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const totalPrice = days * pricePerDay;
+    // Calculate number of days
+    const timeDiff = end - start;
+    const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)); // Convert ms to days
+    if (days <= 0) {
+      return res.status(400).json({ message: "Invalid booking duration." });
+    }
 
+    // Ensure vehicle has a pricePerDay field
+    if (!vehicle.pricePerDay) {
+      console.error(
+        "❌ Vehicle pricePerDay is missing or invalid:",
+        vehicle.pricePerDay
+      );
+      return res
+        .status(500)
+        .json({ message: "Vehicle price information is missing" });
+    }
+
+    // Calculate total price
+    const totalPrice = days * vehicle.pricePerDay;
+    console.log("✅ Total Price Calculated:", totalPrice);
+
+    if (isNaN(totalPrice) || totalPrice <= 0) {
+      console.error("❌ Total Price Calculation Failed:", totalPrice);
+      return res
+        .status(500)
+        .json({ message: "Failed to calculate total price" });
+    }
+
+    // Create new booking
     const booking = new Booking({
       user: req.user.id,
       vehicle: vehicleId,
       startDate: start,
       endDate: end,
-      totalPrice,
+      totalPrice, // Now we ensure totalPrice is correctly calculated
       status: "pending",
     });
 
+    console.log("🔹 Saving Booking:", booking);
+
     const savedBooking = await booking.save();
+    console.log("✅ Booking Successfully Created:", savedBooking);
+
     res
       .status(201)
       .json({ message: "Booking created successfully", booking: savedBooking });
   } catch (error) {
-    console.error("❌ Error creating booking:", error);
-    res.status(500).json({ message: "Error creating booking." });
+    console.error("❌ Error in Booking Route:", error);
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
   }
 });
 
