@@ -50,7 +50,7 @@ router.get("/:id", authenticate, async (req, res) => {
   }
 });
 
-// ✅ Create a new booking with Corrected Total Price Calculation
+// Create a new booking with Corrected Total Price Calculation
 router.post("/", authenticate, async (req, res) => {
   try {
     console.log("🔹 Request Body:", req.body);
@@ -58,7 +58,7 @@ router.post("/", authenticate, async (req, res) => {
     // Extract data from request body
     const { vehicleId, startDate, endDate } = req.body;
     if (!vehicleId || !startDate || !endDate) {
-      console.error("❌ Missing required fields");
+      console.error("Missing required fields");
       return res
         .status(400)
         .json({ message: "Vehicle ID, startDate, and endDate are required" });
