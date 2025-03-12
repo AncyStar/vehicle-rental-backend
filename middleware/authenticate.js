@@ -16,7 +16,14 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
     console.log("🔹 Extracted Token:", token); // ✅ Debugging log
 
-    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    let verified;
+    try {
+      verified = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      console.error("❌ Token verification failed:", error.message);
+      return res.status(401).json({ message: "Unauthorized: Invalid token" });
+    }
+
     const user = await User.findById(verified.id).select("-password");
 
     if (!user) {
@@ -28,13 +35,13 @@ const authenticate = async (req, res, next) => {
     console.log("✅ User Authenticated:", user.email);
     next();
   } catch (error) {
-    console.error("❌ Invalid token:", error.message);
-    res.status(401).json({ message: "Unauthorized: Invalid token" });
+    console.error("❌ Unexpected Error:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 const isAdmin = (req, res, next) => {
-  if (req.user.role !== "admin") {
+  if (!req.user || req.user.role !== "admin") {
     return res.status(403).json({ message: "Forbidden: Admins only" });
   }
   next();

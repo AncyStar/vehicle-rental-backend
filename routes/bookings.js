@@ -1,9 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const Booking = require("../models/Booking");
-const authMiddleware = require("../middleware/auth"); // Ensure user is logged in
+const { authenticate } = require("../middleware/authenticate"); // Correct import
 
-router.post("/", authMiddleware, async (req, res) => {
+// Create a new booking
+router.post("/", authenticate, async (req, res) => {
+  // 🔹 Fixed Middleware Name
   try {
     const { vehicleId, startDate, endDate, totalPrice } = req.body;
 
@@ -33,10 +35,12 @@ router.post("/", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 });
-// get booking details
-router.get("/:id", async (req, res) => {
+
+// Get booking details by ID
+router.get("/:id", authenticate, async (req, res) => {
+  // 🔹 Fixed Middleware Name
   try {
-    const booking = await Booking.findById(req.params.id); // ❌ Issue: Expecting an ObjectId
+    const booking = await Booking.findById(req.params.id).populate("vehicle"); // Populate vehicle details
     if (!booking) return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
   } catch (error) {
@@ -45,13 +49,22 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.get("/my-bookings", async (req, res) => {
+// Get all bookings for the logged-in user
+router.get("/my-bookings", authenticate, async (req, res) => {
   try {
-    const userId = req.user.id; // Assuming authentication middleware sets req.user
+    const userId = req.user.id; // Ensure req.user is set correctly
+    console.log("🔹 Fetching bookings for user:", userId);
+
     const bookings = await Booking.find({ user: userId }).populate("vehicle");
+
+    if (!bookings.length) {
+      console.log("No bookings found for this user.");
+      return res.status(404).json({ message: "No bookings found." });
+    }
+
     res.json(bookings);
   } catch (error) {
-    console.error("Error fetching bookings:", error);
+    console.error("Error fetching bookings:", error.message);
     res.status(500).json({ message: "Server Error" });
   }
 });
