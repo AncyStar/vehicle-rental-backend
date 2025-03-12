@@ -1,90 +1,79 @@
 const express = require("express");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const Razorpay = require("razorpay");
-const Booking = require("../models/Booking");
-const Payment = require("../models/Payment");
-const { authenticate } = require("../middleware/authenticate");
-
 const router = express.Router();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const { authenticate } = require("../middleware/authenticate");
+const Booking = require("../models/Booking");
 
-// Create Stripe Payment Intent
-router.post("/stripe", authenticate, async (req, res) => {
-  try {
-    const { bookingId } = req.body;
-
-    // Validate bookingId
-    const booking = await Booking.findById(bookingId);
-    if (!booking)
-      return res.status(400).json({ message: "Booking not required" });
-
-    console.log("Booking Total Price:", booking.totalPrice); // Debugging
-
-    if (!booking.totalPrice || isNaN(booking.totalPrice)) {
-      return res.status(400).json({ message: "Invalid booking amount" });
-    }
-    // Create Stripe payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(booking.totalPrice * 100), // Convert to cents
-      currency: "usd",
-      metadata: { bookingId: booking._id.toString() },
-    });
-
-    res.json({ clientSecret: paymentIntent.client_secret });
-  } catch (error) {
-    res.status(500).json({ message: "Payment error", error: error.message });
-  }
-});
-
-// Create Razorpay Order
-router.post("/razorpay", authenticate, async (req, res) => {
+router.post("/create-checkout-session", authenticate, async (req, res) => {
   try {
     const { bookingId } = req.body;
 
     // Fetch booking details
-    const booking = await Booking.findById(bookingId);
-    if (!booking) return res.status(404).json({ message: "Booking not found" });
+    const booking = await Booking.findById(bookingId).populate("vehicle");
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
 
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/payment-failed`,
+      customer_email: req.user.email,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `Rental: ${booking.vehicle.name}`,
+              description: `From: ${booking.startDate} To: ${booking.endDate}`,
+            },
+            unit_amount: booking.totalPrice * 100, // Convert to cents
+          },
+          quantity: 1,
+        },
+      ],
     });
 
-    const order = await razorpay.orders.create({
-      amount: booking.totalPrice * 100, // Convert to paise
-      currency: "INR",
-      receipt: `receipt_${booking._id}`,
-      payment_capture: 1,
-    });
-
-    res.json({ orderId: order.id, amount: booking.totalPrice });
+    res.json({ url: session.url });
   } catch (error) {
-    res.status(500).json({ message: "Payment error", error: error.message });
+    console.error("Error creating checkout session:", error);
+    res.status(500).json({ message: "Server Error", error });
   }
 });
 
-// Save Payment Record (After Successful Payment)
-router.post("/confirm", authenticate, async (req, res) => {
-  try {
-    const { bookingId, transactionId, method } = req.body;
+// Webhook to handle Stripe events
+router.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    let event;
 
-    // Update payment record
-    const payment = await Payment.create({
-      user: req.user.id,
-      booking: bookingId,
-      amount: req.body.amount,
-      transactionId,
-      status: "completed",
-    });
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+    } catch (err) {
+      console.error("Webhook Error:", err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
 
-    // Mark booking as confirmed
-    await Booking.findByIdAndUpdate(bookingId, { status: "confirmed" });
+    // Handle checkout session completion
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const bookingId = session.metadata.bookingId;
 
-    res.json({ message: "Payment successful", payment });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error confirming payment", error: error.message });
+      await Booking.findByIdAndUpdate(bookingId, { status: "confirmed" });
+
+      console.log("✅ Payment Successful for Booking:", bookingId);
+    }
+
+    res.json({ received: true });
   }
-});
+);
 
 module.exports = router;
