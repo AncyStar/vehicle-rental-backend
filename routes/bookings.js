@@ -5,7 +5,6 @@ const { authenticate } = require("../middleware/authenticate"); // Correct impor
 
 // Create a new booking
 router.post("/", authenticate, async (req, res) => {
-  // 🔹 Fixed Middleware Name
   try {
     const { vehicleId, startDate, endDate, totalPrice } = req.body;
 
@@ -36,12 +35,18 @@ router.post("/", authenticate, async (req, res) => {
   }
 });
 
-// Get booking details by ID
+// Get booking details by ID (Fix: Use exact "/:id" to prevent conflicts)
 router.get("/:id", authenticate, async (req, res) => {
-  // 🔹 Fixed Middleware Name
   try {
-    const booking = await Booking.findById(req.params.id).populate("vehicle"); // Populate vehicle details
+    const { id } = req.params;
+
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: "Invalid booking ID" });
+    }
+
+    const booking = await Booking.findById(id).populate("vehicle");
     if (!booking) return res.status(404).json({ message: "Booking not found" });
+
     res.json(booking);
   } catch (error) {
     console.error("Error fetching booking:", error);
@@ -49,23 +54,32 @@ router.get("/:id", authenticate, async (req, res) => {
   }
 });
 
-// Get all bookings for the logged-in user
-router.get("/my-bookings", authenticate, async (req, res) => {
+// 🔹 Get all bookings for the logged-in user (Fix: Change route from "/my-bookings" to "/my")
+router.get("/my", authenticate, async (req, res) => {
   try {
-    const userId = req.user.id; // Ensure req.user is set correctly
+    console.log("🔹 Checking authenticated user:", req.user);
+
+    if (!req.user || !req.user.id) {
+      console.error("❌ Error: User ID is missing from req.user");
+      return res.status(401).json({ message: "Unauthorized: User ID missing" });
+    }
+
+    const userId = req.user.id;
     console.log("🔹 Fetching bookings for user:", userId);
 
     const bookings = await Booking.find({ user: userId }).populate("vehicle");
 
+    console.log("✅ Bookings Found:", bookings);
+
     if (!bookings.length) {
-      console.log("No bookings found for this user.");
+      console.log("ℹ️ No bookings found for this user.");
       return res.status(404).json({ message: "No bookings found." });
     }
 
     res.json(bookings);
   } catch (error) {
-    console.error("Error fetching bookings:", error.message);
-    res.status(500).json({ message: "Server Error" });
+    console.error("❌ Error fetching bookings:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
 
