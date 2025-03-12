@@ -45,6 +45,29 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
+router.get("/my", authenticate, async (req, res) => {
+  try {
+    console.log("🔹 Authenticated User ID:", req.user?.id); // Debug log
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized: No user found" });
+    }
+
+    const bookings = await Booking.find({ user: req.user.id }).populate(
+      "vehicle"
+    );
+
+    if (!bookings.length) {
+      return res.status(404).json({ message: "No bookings found" });
+    }
+
+    res.json(bookings);
+  } catch (error) {
+    console.error("❌ Error fetching user bookings:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 // Get booking details by ID (Fix: Use exact "/:id" to prevent conflicts)
 router.get("/:id", authenticate, async (req, res) => {
   try {

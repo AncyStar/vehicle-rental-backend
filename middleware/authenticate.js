@@ -4,17 +4,17 @@ const User = require("../models/User");
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    console.log("🔹 Auth Header Received:", authHeader); // ✅ Debugging log
+    console.log("🔹 Auth Header Received:", authHeader); // Debugging log
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.error("❌ No token provided");
+      console.error("No token provided");
       return res
         .status(401)
         .json({ message: "Unauthorized: No token provided" });
     }
 
     const token = authHeader.split(" ")[1];
-    console.log("🔹 Extracted Token:", token); // ✅ Debugging log
+    console.log("🔹 Extracted Token:", token); // Debugging log
 
     let verified;
     try {
