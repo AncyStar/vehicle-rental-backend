@@ -3,16 +3,11 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-// Import routes
-const authRoutes = require("./routes/authRoute");
-const vehicleRoutes = require("./routes/vehicles");
-const bookingRoutes = require("./routes/bookings");
-const paymentRoutes = require("./routes/payments");
-
 const app = express();
 
 // Middleware
 app.use(express.json());
+
 app.use(
   cors({
     origin: "https://vehicle-rentel-frontend.netlify.app",
@@ -21,6 +16,15 @@ app.use(
     credentials: true,
   })
 );
+
+// Enable Preflight Requests
+app.options("*", cors());
+
+// Import routes
+const authRoutes = require("./routes/authRoute");
+const vehicleRoutes = require("./routes/vehicles");
+const bookingRoutes = require("./routes/bookings");
+const paymentRoutes = require("./routes/payments");
 
 // Routes
 app.use("/api/auth", authRoutes);
