@@ -55,7 +55,7 @@ router.get("/my", authenticate, async (req, res) => {
   }
 });
 
-// Get booking details by ID (Fix: Use exact "/:id" to prevent conflicts)
+// Get booking details by ID
 router.get("/:id", authenticate, async (req, res) => {
   try {
     const { id } = req.params;
