@@ -48,7 +48,7 @@ router.get("/", authenticate, async (req, res) => {
 router.get("/my", authenticate, async (req, res) => {
   try {
     const userId = req.user.id; // Extract user ID from token (if using auth middleware)
-    const bookings = await Booking.find({ user: userId }); // Filter by user
+    const bookings = await Booking.find({ user: userId }).populate("vehicle"); // Populate vehicle details
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: "Error fetching bookings", error });
