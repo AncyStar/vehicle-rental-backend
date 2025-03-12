@@ -34,34 +34,17 @@ router.post("/", authenticate, async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 });
-// Get all bookings for the logged-in user (Fix: Change route from "/my-bookings" to "/my")
-router.get("/my", authenticate, async (req, res) => {
+// Get all bookings
+router.get("/", authenticate, async (req, res) => {
   try {
-    console.log("🔹 Checking authenticated user:", req.user);
-
-    if (!req.user || !req.user.id) {
-      console.error("❌ Error: User ID is missing from req.user");
-      return res.status(401).json({ message: "Unauthorized: User ID missing" });
-    }
-
-    const userId = req.user.id;
-    console.log("🔹 Fetching bookings for user:", userId);
-
-    const bookings = await Booking.find({ user: userId }).populate("vehicle");
-
-    console.log("Bookings Found:", bookings);
-
-    if (!bookings.length) {
-      console.log(" No bookings found for this user.");
-      return res.status(404).json({ message: "No bookings found." });
-    }
-
+    const bookings = await Booking.find().populate("vehicle user");
     res.json(bookings);
   } catch (error) {
-    console.error("❌ Error fetching bookings:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
+    console.error("Error fetching bookings:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 // Get booking details by ID (Fix: Use exact "/:id" to prevent conflicts)
 router.get("/:id", authenticate, async (req, res) => {
   try {
